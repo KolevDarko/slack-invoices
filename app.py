@@ -4,7 +4,8 @@ from slack_sdk.errors import SlackApiError
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_bolt import App
 from dotenv import find_dotenv, load_dotenv
-from flask import Flask, request
+from flask import Flask, jsonify, request
+from functions import draft_email
 
 load_dotenv(find_dotenv())
 
@@ -59,8 +60,9 @@ def handle_mentions(body, say):
 
     mention = f"<@{SLACK_BOT_USER_ID}>"
     text = text.replace(mention, "").strip()
+    say("Sure, I'll get right on that")
 
-    response = my_function(text)
+    response = draft_email(text)
     say(response)
 
 @flask_app.route("/slack/events", methods=["POST"])
@@ -72,8 +74,16 @@ def slack_events():
     Returns:
         Response: The result of handling the request.
     """
+    # Check if the request is a challenge request
+    data = request.json
+    if 'challenge' in data:
+        print("hi challenge")
+        return jsonify({"challenge": data["challenge"] or ""})
+    if data["type"] == "url_verification":
+       return jsonify({"challenge": data["challenge"] or ""})
+    
     return handler.handle(request)
 
 # Run the Flask app
 if __name__ == "__main__":
-    flask_app.run()
+    flask_app.run(port=5005, debug=True)
