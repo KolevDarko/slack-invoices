@@ -5,15 +5,16 @@ from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_bolt import App
 from dotenv import find_dotenv, load_dotenv
 from flask import Flask, jsonify, request
-from functions import try_invoice
+from functions import extract_invoice_data
 from invoice import create_invoice
 
-load_dotenv(find_dotenv())
+load_dotenv()
 
 # Set Slack API credentials
 SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
 SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]
 SLACK_BOT_USER_ID = os.environ["SLACK_BOT_USER_ID"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 # Init slack app
 app = App(token=SLACK_BOT_TOKEN)
@@ -33,21 +34,6 @@ def get_bot_user_id():
         print(f"Error: {e}")
 
 
-def my_function(text):
-    """
-    Custom function to process the text and return a response.
-    In this example, the function converts the input text to uppercase.
-
-    Args:
-        text (str): The input text to process.
-
-    Returns:
-        str: The processed text.
-    """
-    response = text.upper()
-    return response
-
-
 @app.event("app_mention")
 def handle_mentions(body, say):
     """
@@ -64,7 +50,7 @@ def handle_mentions(body, say):
     text = text.replace(mention, "").strip()
     say("Sure, extracting invoice data")
 
-    response = try_invoice(text)
+    response = extract_invoice_data(text)
     print(f"Got response, {response}")
     invoice_id = create_invoice(response)
     invoice_link = f"https://app.request.finance/draft/{invoice_id}"
@@ -89,6 +75,11 @@ def slack_events():
         return jsonify({"challenge": data["challenge"] or ""})
 
     return handler.handle(request)
+
+
+@flask_app.route("/")
+def hello():
+    return "Hello World!"
 
 
 # Run the Flask app

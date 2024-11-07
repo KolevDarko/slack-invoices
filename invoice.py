@@ -54,7 +54,9 @@ def create_invoice(invoice_data_str):
         "invoiceItems": format_invoice_items(invoice_data["items"]),
         "invoiceNumber": f"A{random_num}",
         "buyerInfo": {
-            "email": invoice_data.get("email") or invoice_data.get("recipient"),
+            "email": invoice_data.get("recipient_email")
+            or invoice_data.get("email")
+            or invoice_data.get("recipient"),
         },
         "paymentTerms": {"dueDate": format_date(due_date)},
         "paymentAddress": "0x4886E85E192cdBC81d42D89256a81dAb990CDD74",

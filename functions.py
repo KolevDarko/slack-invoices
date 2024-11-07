@@ -1,6 +1,6 @@
+import os
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
-from dotenv import load_dotenv, find_dotenv
 from langchain.prompts.chat import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
@@ -13,38 +13,33 @@ from langchain.chains.openai_functions import (
 )
 from langchain.schema import HumanMessage, SystemMessage
 
-load_dotenv(find_dotenv())
-
 invoice_schema = {
-    "type": "object",
-    "properties": {
-        "recipient_email": {
-            "type": "string",
-            "description": "Email of invoice recipient.",
-        },
-        "items": {
-            "type": "array",
-            "description": "Array of invoice items being charged to recipient",
-            "item": {
-                "type": "object",
-                "description": "Information about one type of invoice item",
-                "properties": {
-                    "quantity": {
-                        "type": "number",
-                        "description": "The number of invoice items of this type in the invoice",
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Name of the invoice item",
-                    },
-                    "price": {
-                        "type": "number",
-                        "description": "Price of the invoice item",
-                    },
-                    "currency": {
-                        "type": "string",
-                        "description": "Payment currency the item is priced in",
-                    },
+    "recipient_email": {
+        "type": "string",
+        "description": "Email of invoice recipient.",
+    },
+    "items": {
+        "type": "array",
+        "description": "Array of invoice items being charged to recipient",
+        "item": {
+            "type": "object",
+            "description": "Information about one type of invoice item",
+            "properties": {
+                "quantity": {
+                    "type": "number",
+                    "description": "The number of invoice items of this type in the invoice",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the invoice item",
+                },
+                "price": {
+                    "type": "number",
+                    "description": "Price of the invoice item",
+                },
+                "currency": {
+                    "type": "string",
+                    "description": "Payment currency the item is priced in",
                 },
             },
         },
@@ -52,24 +47,24 @@ invoice_schema = {
 }
 
 
-def draft_invoice(user_input):
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    prompt_msgs = [
-        SystemMessage(
-            content="You are a world class algorithm for extracting inovice information in a structured format."
-        ),
-        HumanMessage(
-            content="Use the given format to extract information from the following input:"
-        ),
-        HumanMessagePromptTemplate.from_template("{input}"),
-        HumanMessage(content="Tips: Make sure to answer in the correct format"),
-    ]
-    prompt = ChatPromptTemplate(messages=prompt_msgs)
-    chain = create_structured_output_chain(invoice_schema, llm, prompt, verbose=True)
-    print("Waiting response")
-    response = chain.run(user_input)
-    print("Got response")
-    return response
+# def draft_invoice(user_input):
+#     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+#     prompt_msgs = [
+#         SystemMessage(
+#             content="You are a world class algorithm for extracting inovice information in a structured format."
+#         ),
+#         HumanMessage(
+#             content="Use the given format to extract information from the following input:"
+#         ),
+#         HumanMessagePromptTemplate.from_template("{input}"),
+#         HumanMessage(content="Tips: Make sure to answer in the correct format"),
+#     ]
+#     prompt = ChatPromptTemplate(messages=prompt_msgs)
+#     chain = create_structured_output_chain(invoice_schema, llm, prompt, verbose=True)
+#     print("Waiting response")
+#     response = chain.run(user_input)
+#     print("Got response")
+#     return response
 
 
 def draft_email(user_input, name="John"):
@@ -100,18 +95,28 @@ def draft_email(user_input, name="John"):
     return response
 
 
-def try_invoice(user_input):
-    chat = ChatOpenAI(model_name="gpt-4o-mini", temperature=0, verbose=True)
+def extract_invoice_data(user_input):
+    chat = ChatOpenAI(
+        model_name="gpt-4o-mini",
+        temperature=0,
+        verbose=True,
+    )
 
     system_message_prompt = SystemMessage(
-        content="You are a world class algorithm for extracting inovice information in the following format: {invoice_schema}"
+        content=f"""
+        You are a helpfull assistant for extracting invoice information from human input in the following format.
+        ===============
+        Format: {invoice_schema}
+        ===============
+        You must respond with only json.
+        It is very very important to respond in json format and nothing else, my career depends on it!
+        """
     )
-    human_template = "Use the given format to extract information from the following input: {user_input}"
-
-    human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
+    # human_template = "Use the given format to extract information from the following input: {user_input}"
+    # human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
 
     chat_prompt = ChatPromptTemplate.from_messages(
-        [system_message_prompt, human_message_prompt]
+        [system_message_prompt, HumanMessage(content=user_input)]
     )
 
     chain = LLMChain(llm=chat, prompt=chat_prompt)
