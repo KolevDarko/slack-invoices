@@ -5,7 +5,8 @@ from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_bolt import App
 from dotenv import find_dotenv, load_dotenv
 from flask import Flask, jsonify, request
-from functions import draft_email
+from functions import try_invoice
+from invoice import create_invoice
 
 load_dotenv(find_dotenv())
 
@@ -21,14 +22,15 @@ app = App(token=SLACK_BOT_TOKEN)
 flask_app = Flask(__name__)
 handler = SlackRequestHandler(app)
 
+
 def get_bot_user_id():
-  # Gets bot user id via slack Api
-  try:
-    slack_client = WebClient(token=os.environ["SLACK_BOT_TOKEN"])
-    response = slack_client.auth_test()
-    return response["user_id"]
-  except SlackApiError as e:
-    print(f"Error: {e}")
+    # Gets bot user id via slack Api
+    try:
+        slack_client = WebClient(token=os.environ["SLACK_BOT_TOKEN"])
+        response = slack_client.auth_test()
+        return response["user_id"]
+    except SlackApiError as e:
+        print(f"Error: {e}")
 
 
 def my_function(text):
@@ -60,10 +62,14 @@ def handle_mentions(body, say):
 
     mention = f"<@{SLACK_BOT_USER_ID}>"
     text = text.replace(mention, "").strip()
-    say("Sure, I'll get right on that")
+    say("Sure, extracting invoice data")
 
-    response = draft_email(text)
-    say(response)
+    response = try_invoice(text)
+    print(f"Got response, {response}")
+    invoice_id = create_invoice(response)
+    invoice_link = f"https://app.request.finance/draft/{invoice_id}"
+    say(f"Invoice created: {invoice_link}")
+
 
 @flask_app.route("/slack/events", methods=["POST"])
 def slack_events():
@@ -76,13 +82,14 @@ def slack_events():
     """
     # Check if the request is a challenge request
     data = request.json
-    if 'challenge' in data:
+    if "challenge" in data:
         print("hi challenge")
         return jsonify({"challenge": data["challenge"] or ""})
     if data["type"] == "url_verification":
-       return jsonify({"challenge": data["challenge"] or ""})
-    
+        return jsonify({"challenge": data["challenge"] or ""})
+
     return handler.handle(request)
+
 
 # Run the Flask app
 if __name__ == "__main__":
